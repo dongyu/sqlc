@@ -110,6 +110,7 @@ func (r *Result) GoQueries(settings config.CombinedSettings) []dinosql.GoQuery {
 			SourceName:   query.Filename,
 			SQL:          query.SQL,
 			// Comments:     query.Comments,
+			Meta: query.Meta,
 		}
 
 		if len(query.Params) == 1 {
@@ -176,7 +177,7 @@ func (r *Result) GoQueries(settings config.CombinedSettings) []dinosql.GoQuery {
 						goType:       r.goTypeCol(query.Columns[i]),
 					}
 				}
-				gs = r.columnsToStruct(gq.MethodName+"Row", structInfo, settings)
+				gs = r.columnsToStruct(gq.Meta.RowStructName(gq.MethodName+"Row"), structInfo, settings)
 				emit = true
 			}
 			gq.Ret = dinosql.GoQueryValue{

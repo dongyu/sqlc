@@ -23,6 +23,8 @@ type Query struct {
 	DefaultTableName string   // for columns that are not qualified
 
 	Filename string
+	// Meta query meta data
+	Meta dinosql.Meta
 }
 
 type Column struct {
@@ -141,14 +143,18 @@ func (q *Query) parseNameAndCmd() error {
 		return fmt.Errorf("cannot parse name and cmd from null query")
 	}
 	_, comments := sqlparser.SplitMarginComments(q.SQL)
-	name, cmd, err := dinosql.ParseMetadata(comments.Leading, dinosql.CommentSyntaxStar)
+	meta, err := dinosql.ParseMetadata(comments.Leading, dinosql.CommentSyntaxStar)
 	if err != nil {
 		return err
-	} else if name == "" || cmd == "" {
+	}
+	name := meta.Name
+	cmd := meta.Command
+	if name == "" || cmd == "" {
 		return fmt.Errorf("failed to parse query leading comment")
 	}
 	q.Name = name
 	q.Cmd = cmd
+	q.Meta = meta
 	return nil
 }
 

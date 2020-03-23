@@ -161,10 +161,67 @@ func TestParseMetadata(t *testing.T) {
 		`-- name: CreateFoo :one something`,
 		`-- name: `,
 	} {
-		if _, _, err := ParseMetadata(query, CommentSyntaxDash); err == nil {
+		if _, err := ParseMetadata(query, CommentSyntaxDash); err == nil {
 			t.Errorf("expected invalid metadata: %q", query)
 		}
 	}
+}
+
+func TestParseExtendMetaData(t *testing.T) {
+	t.Parallel()
+	tcs := [...]struct {
+		in   string
+		want Meta
+	}{
+		struct {
+			in   string
+			want Meta
+		}{
+			in: `/* name: ListFoo :many {"struct_name":"Foo"} */`,
+			want: Meta{
+				Name:    "ListFoo",
+				Command: ":many",
+				Extend: MetaExtend{
+					Name: "Foo",
+				},
+			},
+		},
+		struct {
+			in   string
+			want Meta
+		}{
+			in: `/* name: ListFoo :many */`,
+			want: Meta{
+				Name:    "ListFoo",
+				Command: ":many",
+				Extend:  MetaExtend{},
+			},
+		},
+		struct {
+			in   string
+			want Meta
+		}{
+			in: `/* name: GetSystemSettingByName :many {"struct_name":"SystemSettingItem"} */`,
+			want: Meta{
+				Name:    "GetSystemSettingByName",
+				Command: ":many",
+				Extend: MetaExtend{
+					Name: "SystemSettingItem",
+				},
+			},
+		},
+	}
+
+	for _, tc := range tcs {
+		meta, err := ParseMetadata(tc.in, CommentSyntaxStar)
+		if err != nil {
+			t.Fatalf("error %s", err.Error())
+		}
+		if diff := cmp.Diff(meta, tc.want); diff != "" {
+			t.Errorf("differed (-want +got):\n%s", diff)
+		}
+	}
+
 }
 
 func TestExpand(t *testing.T) {
