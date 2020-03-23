@@ -32,3 +32,34 @@ func TestArgName(t *testing.T) {
 		}
 	}
 }
+
+func TestEnumColumnValueName(t *testing.T) {
+	cases := [...]struct {
+		name, value string
+		want        string
+	}{
+		struct {
+			name  string
+			value string
+			want  string
+		}{
+			name:  "disabled",
+			value: "true",
+			want:  "DisabledTypeTrue",
+		},
+		struct {
+			name  string
+			value string
+			want  string
+		}{
+			name:  "status",
+			value: "on",
+			want:  "StatusTypeOn",
+		},
+	}
+	for _, tc := range cases {
+		if diff := cmp.Diff(enumColumnValueName(tc.name, tc.value), tc.want); diff != "" {
+			t.Errorf(diff)
+		}
+	}
+}
