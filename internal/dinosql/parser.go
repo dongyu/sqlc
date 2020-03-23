@@ -2,6 +2,7 @@ package dinosql
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -194,6 +195,7 @@ type Query struct {
 
 	// XXX: Hack
 	Filename string
+	Meta     Meta
 }
 
 type Result struct {
@@ -364,7 +366,8 @@ const (
 	CommentSyntaxHash
 )
 
-func ParseMetadata(t string, commentStyle CommentSyntax) (string, string, error) {
+func ParseMetadata(t string, commentStyle CommentSyntax) (Meta, error) {
+	var meta Meta
 	for _, line := range strings.Split(t, "\n") {
 		if commentStyle == CommentSyntaxDash && !strings.HasPrefix(line, "-- name:") {
 			continue
@@ -378,24 +381,32 @@ func ParseMetadata(t string, commentStyle CommentSyntax) (string, string, error)
 			part = part[:len(part)-1] // removes the trailing "*/" element
 		}
 		if len(part) == 2 {
-			return "", "", fmt.Errorf("missing query type [':one', ':many', ':exec', ':execrows']: %s", line)
+			return meta, fmt.Errorf("missing query type [':one', ':many', ':exec', ':execrows']: %s", line)
 		}
-		if len(part) != 4 {
-			return "", "", fmt.Errorf("invalid query comment: %s", line)
+		if len(part) < 4 {
+			return meta, fmt.Errorf("invalid query comment: %s", line)
+		}
+		var extend MetaExtend
+		// parse extend info
+		if len(part) > 4 {
+			_ = json.Unmarshal([]byte(part[4]), &extend)
 		}
 		queryName := part[2]
 		queryType := strings.TrimSpace(part[3])
 		switch queryType {
 		case ":one", ":many", ":exec", ":execrows":
 		default:
-			return "", "", fmt.Errorf("invalid query type: %s", queryType)
+			return meta, fmt.Errorf("invalid query type: %s", queryType)
 		}
 		if err := validateQueryName(queryName); err != nil {
-			return "", "", err
+			return meta, err
 		}
-		return queryName, queryType, nil
+		meta.Name = queryName
+		meta.Command = queryType
+		meta.Extend = extend
+		return meta, nil
 	}
-	return "", "", nil
+	return meta, nil
 }
 
 func validateCmd(n nodes.Node, name, cmd string) error {
@@ -459,10 +470,12 @@ func parseQuery(c core.Catalog, stmt nodes.Node, source string, rewriteParameter
 	if err := validateFuncCall(&c, raw); err != nil {
 		return nil, err
 	}
-	name, cmd, err := ParseMetadata(strings.TrimSpace(rawSQL), CommentSyntaxDash)
+	meta, err := ParseMetadata(strings.TrimSpace(rawSQL), CommentSyntaxDash)
 	if err != nil {
 		return nil, err
 	}
+	name := meta.Name
+	cmd := meta.Command
 	if err := validateCmd(raw.Stmt, name, cmd); err != nil {
 		return nil, err
 	}
@@ -524,6 +537,7 @@ func parseQuery(c core.Catalog, stmt nodes.Node, source string, rewriteParameter
 		Params:   params,
 		Columns:  cols,
 		SQL:      trimmed,
+		Meta:     meta,
 	}, nil
 }
 

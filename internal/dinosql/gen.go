@@ -146,6 +146,26 @@ func (v GoQueryValue) Scan() string {
 	return "\n" + strings.Join(out, ",\n")
 }
 
+// Meta query meta info
+type Meta struct {
+	Name    string
+	Command string
+	Extend  MetaExtend
+}
+
+// RowStructName fetch row struct name
+func (m Meta) RowStructName(name string) string {
+	if m.Extend.Name == "" {
+		return name
+	}
+	return m.Extend.Name
+}
+
+// MetaExtend extend info
+type MetaExtend struct {
+	Name string `json:"struct_name"`
+}
+
 // A struct used to generate methods and fields on the Queries struct
 type GoQuery struct {
 	Cmd          string
@@ -157,6 +177,7 @@ type GoQuery struct {
 	SourceName   string
 	Ret          GoQueryValue
 	Arg          GoQueryValue
+	Meta         Meta
 }
 
 type Generateable interface {
@@ -896,6 +917,7 @@ func (r Result) GoQueries(settings config.CombinedSettings) []GoQuery {
 			SourceName:   query.Filename,
 			SQL:          query.SQL,
 			Comments:     query.Comments,
+			Meta:         query.Meta,
 		}
 
 		if len(query.Params) == 1 {
@@ -958,7 +980,7 @@ func (r Result) GoQueries(settings config.CombinedSettings) []GoQuery {
 						Column: c,
 					})
 				}
-				gs = r.columnsToStruct(gq.MethodName+"Row", columns, settings)
+				gs = r.columnsToStruct(gq.Meta.RowStructName(gq.MethodName+"Row"), columns, settings)
 				emit = true
 			}
 			gq.Ret = GoQueryValue{
