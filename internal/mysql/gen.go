@@ -24,6 +24,16 @@ type Result struct {
 	Queries []*Query
 }
 
+// enum value name
+func enumColumnValueName(colName, value string) string {
+	items := strings.Split(colName, "_")
+	items = append(items, "Type", value)
+	for i, v := range items {
+		items[i] = strings.Title(v)
+	}
+	return strings.Join(items, "")
+}
+
 // Enums generates parser-agnostic GoEnum types
 func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 	var enums []dinosql.GoEnum
@@ -34,9 +44,10 @@ func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 				enumName := r.enumNameFromColDef(col)
 				for _, c := range col.Type.EnumValues {
 					stripped := stripInnerQuotes(c)
+					name := enumColumnValueName(col.Name.String(), stripped)
 					constants = append(constants, dinosql.GoConstant{
 						// TODO: maybe add the struct name call to capitalize the name here
-						Name:  stripped,
+						Name:  name,
 						Value: stripped,
 						Type:  enumName,
 					})
