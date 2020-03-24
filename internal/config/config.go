@@ -53,6 +53,7 @@ type Table struct {
 	StructName string `json:"struct_name" yaml:"struct_name"`
 	// Column  字段重命名
 	Column map[string]string `json:"column" yaml:"column"`
+	JSONTagRename map[string]string `json:"json" yaml:"json"`
 }
 
 func (t Table) GetStructName(name string) string {
@@ -68,6 +69,16 @@ func (t Table) GetColumnName(name string) string {
 	}
 	v, ok := t.Column[name]
 	if ok && v != "" {
+		return v
+	}
+	return name
+}
+func (t Table)GetJSONTag(name string)string{
+	if t.JSONTagRename == nil{
+		return name
+	}
+	v ,ok := t.JSONTagRename[name]
+	if ok && v != ""{
 		return v
 	}
 	return name

@@ -82,12 +82,17 @@ func (r *Result) Structs(settings config.CombinedSettings) []dinosql.GoStruct {
 			Name:  inflection.Singular(dinosql.GetStructName(tableName, settings)),
 			Table: core.FQN{tableName, "", ""}, // TODO: Complete hack. Only need for equality check to see if struct can be reused between queries
 		}
+		tb := settings.Package.GetTable(tableName)
 
 		for _, col := range cols {
+			jsonTag := col.Name.String()
+			if tb != nil{
+				jsonTag = tb.GetJSONTag(jsonTag)
+			}
 			s.Fields = append(s.Fields, dinosql.GoField{
 				Name:    dinosql.GetColumnName(col.Name.String(), tableName, settings),
 				Type:    r.goTypeCol(Column{col, tableName}),
-				Tags:    map[string]string{"json:": col.Name.String()},
+				Tags:    map[string]string{"json:": jsonTag},
 				Comment: "",
 			})
 		}
