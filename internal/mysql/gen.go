@@ -112,10 +112,9 @@ func (r *Result) GoQueries(settings config.CombinedSettings) []dinosql.GoQuery {
 		if query.Cmd == "" {
 			continue
 		}
-
 		gq := dinosql.GoQuery{
 			Cmd:          query.Cmd,
-			ConstantName: dinosql.LowerTitle(query.Name),
+			ConstantName: strings.Title(query.Name + "SQL"),
 			FieldName:    dinosql.LowerTitle(query.Name) + "Stmt",
 			MethodName:   query.Name,
 			SourceName:   query.Filename,
