@@ -45,6 +45,34 @@ const (
 	EngineXElephant Engine = "_elephant"
 )
 
+// Table 数据表
+type Table struct {
+	// Name 数据表名称
+	Name string `json:"name" yaml:"name"`
+	// StructName 结构名称
+	StructName string `json:"struct_name" yaml:"struct_name"`
+	// Column  字段重命名
+	Column map[string]string `json:"column" yaml:"column"`
+}
+
+func (t Table) GetStructName(name string) string {
+	if t.StructName != "" {
+		return t.StructName
+	}
+	return name
+}
+
+func (t Table) GetColumnName(name string) string {
+	if t.Column == nil {
+		return name
+	}
+	v, ok := t.Column[name]
+	if ok && v != "" {
+		return v
+	}
+	return name
+}
+
 type Config struct {
 	Version string `json:"version" yaml:"version"`
 	SQL     []SQL  `json:"sql" yaml:"sql"`
@@ -70,6 +98,17 @@ type SQL struct {
 	Schema  string `json:"schema" yaml:"schema"`
 	Queries string `json:"queries" yaml:"queries"`
 	Gen     SQLGen `json:"gen" yaml:"gen"`
+	// Table  数据表配置
+	Table []Table `json:"table" yaml:"table"`
+}
+
+func (qsql SQL) GetTable(name string) *Table {
+	for _, item := range qsql.Table {
+		if item.Name == name {
+			return &item
+		}
+	}
+	return nil
 }
 
 type SQLGen struct {

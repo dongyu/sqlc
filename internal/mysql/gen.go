@@ -79,13 +79,13 @@ func (r *Result) Structs(settings config.CombinedSettings) []dinosql.GoStruct {
 	var structs []dinosql.GoStruct
 	for tableName, cols := range r.Schema.tables {
 		s := dinosql.GoStruct{
-			Name:  inflection.Singular(dinosql.StructName(tableName, settings)),
+			Name:  inflection.Singular(dinosql.GetStructName(tableName, settings)),
 			Table: core.FQN{tableName, "", ""}, // TODO: Complete hack. Only need for equality check to see if struct can be reused between queries
 		}
 
 		for _, col := range cols {
 			s.Fields = append(s.Fields, dinosql.GoField{
-				Name:    dinosql.StructName(col.Name.String(), settings),
+				Name:    dinosql.GetColumnName(col.Name.String(), tableName, settings),
 				Type:    r.goTypeCol(Column{col, tableName}),
 				Tags:    map[string]string{"json:": col.Name.String()},
 				Comment: "",
@@ -164,12 +164,11 @@ func (r *Result) GoQueries(settings config.CombinedSettings) []dinosql.GoQuery {
 				same := true
 				for i, f := range s.Fields {
 					c := query.Columns[i]
-					sameName := f.Name == dinosql.StructName(columnName(c.ColumnDefinition, i), settings)
+					sameName := f.Name == dinosql.GetColumnName(columnName(c.ColumnDefinition, i), s.Table.Catalog, settings)
 					sameType := f.Type == r.goTypeCol(c)
 
 					hackedFQN := core.FQN{c.Table, "", ""} // TODO: only check needed here is equality to see if struct can be reused, this type should be removed or properly used
 					sameTable := s.Table.Catalog == hackedFQN.Catalog && s.Table.Schema == hackedFQN.Schema && s.Table.Rel == hackedFQN.Rel
-
 					if !sameName || !sameType || !sameTable {
 						same = false
 					}
