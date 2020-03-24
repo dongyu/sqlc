@@ -263,6 +263,14 @@ func Combine(conf Config, pkg SQL) CombinedSettings {
 	if pkg.Gen.Go != nil {
 		cs.Go = *pkg.Gen.Go
 		cs.Overrides = append(cs.Overrides, pkg.Gen.Go.Overrides...)
+		if pkg.Gen.Go.Rename != nil {
+			if cs.Rename == nil {
+				cs.Rename = make(map[string]string)
+			}
+			for k, v := range pkg.Gen.Go.Rename {
+				cs.Rename[k] = v
+			}
+		}
 	}
 	if pkg.Gen.Kotlin != nil {
 		cs.Kotlin = *pkg.Gen.Kotlin
