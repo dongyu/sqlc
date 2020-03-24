@@ -589,6 +589,24 @@ func (r Result) Enums(settings config.CombinedSettings) []GoEnum {
 	return enums
 }
 
+// GetStructName 结构名称
+func GetStructName(name string, settings config.CombinedSettings) string {
+	tb := settings.Package.GetTable(name)
+	if tb != nil {
+		name = tb.GetStructName(name)
+	}
+	return StructName(name, settings)
+}
+
+// GetColumnName 获取字段名称
+func GetColumnName(name, tableName string, settings config.CombinedSettings) string {
+	tb := settings.Package.GetTable(tableName)
+	if tb != nil {
+		name = tb.GetColumnName(name)
+	}
+	return StructName(name, settings)
+}
+
 func StructName(name string, settings config.CombinedSettings) string {
 	if rename := settings.Rename[name]; rename != "" {
 		return rename

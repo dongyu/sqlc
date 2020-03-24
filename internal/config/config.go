@@ -102,6 +102,15 @@ type SQL struct {
 	Table []Table `json:"table" yaml:"table"`
 }
 
+func (qsql SQL) GetTable(name string) *Table {
+	for _, item := range qsql.Table {
+		if item.Name == name {
+			return &item
+		}
+	}
+	return nil
+}
+
 type SQLGen struct {
 	Go     *SQLGo     `json:"go,omitempty" yaml:"go"`
 	Kotlin *SQLKotlin `json:"kotlin,omitempty" yaml:"kotlin"`
