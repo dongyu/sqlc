@@ -42,6 +42,24 @@ func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 			if col.Type.Type == "enum" {
 				constants := []dinosql.GoConstant{}
 				enumName, isCustomEnumName := r.enumNameFromColDef(tableName, col)
+				if col.Type.NotNull == false {
+					//enum default is null
+					var name string
+					stripped := "NULL"
+					if isCustomEnumName {
+						name = strings.Title(enumName) + strings.Title(stripped)
+					} else {
+						name = enumColumnValueName(col.Name.String(), stripped)
+					}
+					constants = append(constants, dinosql.GoConstant{
+						// Name 常量名称
+						Name:  name,
+						Value: stripped,
+						// Type 类型名称
+						Type: enumName,
+					})
+				}
+
 				for _, c := range col.Type.EnumValues {
 					stripped := stripInnerQuotes(c)
 					var name string
@@ -64,6 +82,7 @@ func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 					Name:      enumName,
 					Comment:   "",
 					Constants: constants,
+					NotNull:   bool(col.Type.NotNull),
 				}
 				enums = append(enums, goEnum)
 			}

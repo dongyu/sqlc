@@ -31,6 +31,8 @@ type GoEnum struct {
 	Name      string
 	Comment   string
 	Constants []GoConstant
+	// NotNull SQL NOT NULL
+	NotNull bool
 }
 
 type GoField struct {
@@ -1192,6 +1194,8 @@ func (e *{{.Name}}) Scan(src interface{}) error {
 		*e = {{.Name}}(s)
 	case string:
 		*e = {{.Name}}(s)
+	{{if not .NotNull}}case nil:
+		*e = {{.Name}}("NULL"){{end}}
 	default:
 		return fmt.Errorf("unsupported scan type for {{.Name}}: %T", src)
 	}
