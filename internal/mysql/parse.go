@@ -190,6 +190,7 @@ func (pGen PackageGenerator) parseSelect(tree *sqlparser.Select, query string) (
 	parsedQuery.Columns = cols
 
 	whereParams, err := pGen.paramsInWhereExpr(tree.Where, tableAliasMap, defaultTableName)
+
 	if err != nil {
 		return nil, err
 	}

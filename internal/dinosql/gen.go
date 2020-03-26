@@ -66,6 +66,8 @@ type GoQueryValue struct {
 	Name   string
 	Struct *GoStruct
 	Typ    string
+	// LocalSQLQuery 函数内部SQL
+	LocalSQLQuery string
 }
 
 func (v GoQueryValue) EmitStruct() bool {
@@ -513,6 +515,7 @@ func queryImports(r Generateable, settings config.CombinedSettings, filename str
 	}
 
 	if sliceScan() {
+		std["strings"] = struct{}{}
 		pkg["github.com/lib/pq"] = struct{}{}
 	}
 	_, overrideNullTime := overrideTypes["pq.NullTime"]
@@ -1233,9 +1236,10 @@ import (
 {{define "queryCode"}}
 {{range .GoQueries}}
 {{if $.OutputQuery .SourceName}}
+{{if not .Arg.LocalSQLQuery}}
 // {{.ConstantName}} -- name: {{.MethodName}} {{.Cmd}}
 const {{.ConstantName}} = "{{.SQL}}"
-
+{{end}}
 {{if .Arg.EmitStruct}}
 type {{.Arg.Type}} struct { {{- range .Arg.Struct.Fields}}
   {{.Name}} {{.Type}} {{if $.EmitJSONTags}}{{$.Q}}{{.Tag}}{{$.Q}}{{end}}
@@ -1269,16 +1273,20 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ({{.Ret.Ty
 {{range .Comments}}//{{.}}
 {{end -}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ([]{{.Ret.Type}}, error) {
+	var items []{{.Ret.Type}}
+	{{if .Arg.LocalSQLQuery}}
+	querySQL := "{{.Arg.LocalSQLQuery}}"
+	{{end}}
   	{{- if $.EmitPreparedQueries}}
-	rows, err := q.query(ctx, q.{{.FieldName}}, {{.ConstantName}}, {{.Arg.Params}})
+	rows, err := q.query(ctx, q.{{.FieldName}},{{if .Arg.LocalSQLQuery}} querySQL {{else}} {{.ConstantName}} {{end}}, {{.Arg.Params}})
   	{{- else}}
-	rows, err := q.db.QueryContext(ctx, {{.ConstantName}}, {{.Arg.Params}})
+	rows, err := q.db.QueryContext(ctx, {{if .Arg.LocalSQLQuery}} querySQL {{else}} {{.ConstantName}} {{end}}, {{.Arg.Params}})
   	{{- end}}
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []{{.Ret.Type}}
+
 	for rows.Next() {
 		var {{.Ret.Name}} {{.Ret.Type}}
 		if err := rows.Scan({{.Ret.Scan}}); err != nil {

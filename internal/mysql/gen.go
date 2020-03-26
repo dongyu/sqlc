@@ -161,20 +161,33 @@ func (r *Result) GoQueries(settings config.CombinedSettings) []dinosql.GoQuery {
 			// Comments:     query.Comments,
 			Meta: query.Meta,
 		}
-
 		if len(query.Params) == 1 {
 			p := query.Params[0]
+
 			gq.Arg = dinosql.GoQueryValue{
-				Name: p.Name,
-				Typ:  p.Typ,
+				Name: p.GetVariableName(),
+				Typ:  p.GetTypeName(),
+			}
+			if p.IsLikeInStmt() {
+				old, newer := p.ReplaceLikeInStmt("\"", "")
+				if old != "" && newer != "" {
+					gq.Arg.LocalSQLQuery = strings.Replace(query.SQL, old, newer, 1)
+				}
 			}
 		} else if len(query.Params) > 1 {
-
 			structInfo := make([]structParams, len(query.Params))
+			localSQLQuery := query.SQL
 			for i := range query.Params {
+				item := query.Params[i]
+				originalName := item.GetVariableName()
+				goTypeName := item.GetTypeName()
+				old, newer := item.ReplaceLikeInStmt("\"", "arg."+strings.Title(originalName))
+				if old != "" && newer != "" {
+					localSQLQuery = strings.Replace(localSQLQuery, old, newer, 1)
+				}
 				structInfo[i] = structParams{
-					originalName: query.Params[i].Name,
-					goType:       query.Params[i].Typ,
+					originalName: originalName,
+					goType:       goTypeName,
 				}
 			}
 
@@ -182,6 +195,9 @@ func (r *Result) GoQueries(settings config.CombinedSettings) []dinosql.GoQuery {
 				Emit:   true,
 				Name:   "arg",
 				Struct: r.columnsToStruct(gq.MethodName+"Params", structInfo, settings),
+			}
+			if localSQLQuery != query.SQL {
+				gq.Arg.LocalSQLQuery = localSQLQuery
 			}
 		}
 

@@ -15,6 +15,56 @@ type Param struct {
 	OriginalName string
 	Name         string
 	Typ          string
+	// ComparisonExpr 比较表达式
+	ComparisonExpr *sqlparser.ComparisonExpr
+}
+
+// IsLikeInStmt 是否为in/not in表达式
+func (p Param) IsLikeInStmt() bool {
+	if p.ComparisonExpr == nil {
+		return false
+	}
+	op := p.ComparisonExpr.Operator
+	return op == sqlparser.InStr || op == sqlparser.NotInStr
+}
+
+// ReplaceLikeInStmt like stmt reaplce
+func (p Param) ReplaceLikeInStmt(quote string, paramsName string) (string, string) {
+	if !p.IsLikeInStmt() {
+		return "", ""
+	}
+	op := p.ComparisonExpr.Operator
+	var old string
+	if op == sqlparser.InStr {
+		old = fmt.Sprintf("%s in (?)", p.Name)
+
+	}
+	if op == sqlparser.NotInStr {
+		old = fmt.Sprintf("%s not in (?)", p.Name)
+	}
+	if old == "" {
+		return "", ""
+	}
+	if paramsName == "" {
+		paramsName = p.GetVariableName()
+	}
+	newer := strings.Replace(old, "?", fmt.Sprintf("?%s + strings.Repeat(\",?\",len(%s)-1)+%s", quote, paramsName, quote), 1)
+	return old, newer
+}
+
+// GetVariableName 获取变量名称
+func (p Param) GetVariableName() string {
+	if p.IsLikeInStmt() {
+		return p.Name + "List"
+	}
+	return p.Name
+}
+
+func (p Param) GetTypeName() string {
+	if p.IsLikeInStmt() {
+		return "[]" + p.Typ
+	}
+	return p.Typ
 }
 
 func (pGen PackageGenerator) paramsInLimitExpr(limit *sqlparser.Limit, tableAliasMap FromTables) ([]*Param, error) {
@@ -70,6 +120,7 @@ func (pGen PackageGenerator) paramsInWhereExpr(e sqlparser.SQLNode, tableAliasMa
 			return params, nil
 		}
 		e = expr.Expr
+
 	}
 	switch v := e.(type) {
 	case *sqlparser.Where:
@@ -81,6 +132,9 @@ func (pGen PackageGenerator) paramsInWhereExpr(e sqlparser.SQLNode, tableAliasMa
 		p, found, err := pGen.paramInComparison(v, tableAliasMap, defaultTable)
 		if err != nil {
 			return nil, err
+		}
+		if p != nil {
+			p.ComparisonExpr = v
 		}
 		if found {
 			params = append(params, p)
