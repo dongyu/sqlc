@@ -37,19 +37,26 @@ func enumColumnValueName(colName, value string) string {
 // Enums generates parser-agnostic GoEnum types
 func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 	var enums []dinosql.GoEnum
-	for _, table := range r.Schema.tables {
+	for tableName, table := range r.Schema.tables {
 		for _, col := range table {
 			if col.Type.Type == "enum" {
 				constants := []dinosql.GoConstant{}
-				enumName := r.enumNameFromColDef(col)
+				enumName, isCustomEnumName := r.enumNameFromColDef(tableName, col)
 				for _, c := range col.Type.EnumValues {
 					stripped := stripInnerQuotes(c)
-					name := enumColumnValueName(col.Name.String(), stripped)
+					var name string
+					if isCustomEnumName {
+						name = strings.Title(enumName) + strings.Title(stripped)
+					} else {
+						name = enumColumnValueName(col.Name.String(), stripped)
+					}
 					constants = append(constants, dinosql.GoConstant{
 						// TODO: maybe add the struct name call to capitalize the name here
+						// Name 常量名称
 						Name:  name,
 						Value: stripped,
-						Type:  enumName,
+						// Type 类型名称
+						Type: enumName,
 					})
 				}
 
@@ -69,9 +76,17 @@ func stripInnerQuotes(identifier string) string {
 	return strings.Replace(identifier, "'", "", 2)
 }
 
-func (pGen PackageGenerator) enumNameFromColDef(col *sqlparser.ColumnDefinition) string {
+func (pGen PackageGenerator) enumNameFromColDef(tableName string, col *sqlparser.ColumnDefinition) (string, bool) {
+	tbConfig := pGen.Package.GetTable(tableName)
+	colName := col.Name.String()
+	if tbConfig != nil {
+		customName := tbConfig.GetEnumName(colName)
+		if customName != "" {
+			return customName, true
+		}
+	}
 	return fmt.Sprintf("%sType",
-		dinosql.StructName(col.Name.String(), pGen.CombinedSettings))
+		dinosql.StructName(col.Name.String(), pGen.CombinedSettings)), false
 }
 
 // Structs marshels each query into a go struct for generation
@@ -86,7 +101,7 @@ func (r *Result) Structs(settings config.CombinedSettings) []dinosql.GoStruct {
 
 		for _, col := range cols {
 			jsonTag := col.Name.String()
-			if tb != nil{
+			if tb != nil {
 				jsonTag = tb.GetJSONTag(jsonTag)
 			}
 			s.Fields = append(s.Fields, dinosql.GoField{
@@ -270,7 +285,8 @@ func (pGen PackageGenerator) goTypeCol(col Column) string {
 		}
 		return "sql.NullFloat64"
 	case "enum" == t:
-		return pGen.enumNameFromColDef(col.ColumnDefinition)
+		enumTypeName, _ := pGen.enumNameFromColDef(col.Table, col.ColumnDefinition)
+		return enumTypeName
 	case "date" == t, "timestamp" == t, "datetime" == t, "time" == t:
 		if col.Type.NotNull {
 			return "time.Time"

@@ -52,8 +52,10 @@ type Table struct {
 	// StructName 结构名称
 	StructName string `json:"struct_name" yaml:"struct_name"`
 	// Column  字段重命名
-	Column map[string]string `json:"column" yaml:"column"`
+	Column        map[string]string `json:"column" yaml:"column"`
 	JSONTagRename map[string]string `json:"json" yaml:"json"`
+	// EnumName 定义枚举类型名称
+	EnumName map[string]string `json:"enum" yaml:"enum"`
 }
 
 func (t Table) GetStructName(name string) string {
@@ -73,15 +75,25 @@ func (t Table) GetColumnName(name string) string {
 	}
 	return name
 }
-func (t Table)GetJSONTag(name string)string{
-	if t.JSONTagRename == nil{
+func (t Table) GetJSONTag(name string) string {
+	if t.JSONTagRename == nil {
 		return name
 	}
-	v ,ok := t.JSONTagRename[name]
-	if ok && v != ""{
+	v, ok := t.JSONTagRename[name]
+	if ok && v != "" {
 		return v
 	}
 	return name
+}
+func (t Table) GetEnumName(name string) string {
+	if t.EnumName == nil {
+		return ""
+	}
+	v, ok := t.EnumName[name]
+	if ok && v != "" {
+		return v
+	}
+	return ""
 }
 
 type Config struct {
