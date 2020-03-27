@@ -304,13 +304,13 @@ func (pGen PackageGenerator) goTypeCol(col Column) string {
 		if col.Type.NotNull {
 			return "string"
 		}
-		return "sql.NullString"
+		return "NullString"
 	case "int" == t, "integer" == t, t == "smallint",
 		"mediumint" == t, "bigint" == t, "year" == t:
 		if col.Type.NotNull {
 			return "int"
 		}
-		return "sql.NullInt64"
+		return "NullInt64"
 	case "blob" == t, "binary" == t, "varbinary" == t, "tinyblob" == t,
 		"mediumblob" == t, "longblob" == t:
 		return "[]byte"
@@ -318,7 +318,7 @@ func (pGen PackageGenerator) goTypeCol(col Column) string {
 		if col.Type.NotNull {
 			return "float64"
 		}
-		return "sql.NullFloat64"
+		return "NullFloat64"
 	case "enum" == t:
 		enumTypeName, _ := pGen.enumNameFromColDef(col.Table, col.ColumnDefinition)
 		return enumTypeName
@@ -326,12 +326,12 @@ func (pGen PackageGenerator) goTypeCol(col Column) string {
 		if col.Type.NotNull {
 			return "time.Time"
 		}
-		return "sql.NullTime"
+		return "NullTime"
 	case "boolean" == t, "bool" == t, "tinyint" == t:
 		if col.Type.NotNull {
 			return "bool"
 		}
-		return "sql.NullBool"
+		return "NullBool"
 	default:
 		fmt.Printf("unknown MySQL type: %s\n", t)
 		return "interface{}"
