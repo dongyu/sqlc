@@ -125,6 +125,44 @@ func (v GoQueryValue) Params() string {
 	out = append(out, "")
 	return "\n" + strings.Join(out, ",\n")
 }
+func (v GoQueryValue) ManyParams() string {
+	if v.isEmpty() {
+		return ""
+	}
+	return "placehoder..."
+}
+
+// GenQueryPlacehoderParams 生成占位符号参数值
+func (v GoQueryValue) GenQueryPlacehoderParams() string {
+	out := []string{`var placehoder []interface{}`}
+	if v.Struct == nil {
+		if strings.HasPrefix(v.Typ, "[]") && v.Typ != "[]byte" {
+			stmt := fmt.Sprintf(`if v,err := sliceInterface(%s);err!=nil{
+					return items,err
+				}else{
+					placehoder = append(placehoder, v...)
+				}`, v.Name)
+			out = append(out, stmt)
+		} else {
+			out = append(out, fmt.Sprintf(`placehoder = append(placehoder,%s)`, v.Name))
+		}
+	} else {
+		for _, f := range v.Struct.Fields {
+			if strings.HasPrefix(f.Type, "[]") && f.Type != "[]byte" {
+				stmt := fmt.Sprintf(`if v,err := sliceInterface(%s);err!=nil{
+					return items,err
+				}else{
+					placehoder = append(placehoder, v...)
+				}`, v.Name+"."+f.Name)
+				out = append(out, stmt)
+			} else {
+				out = append(out, fmt.Sprintf(`placehoder = append(placehoder,%s)`, v.Name+"."+f.Name))
+			}
+		}
+	}
+
+	return strings.Join(out, "\n")
+}
 
 func (v GoQueryValue) Scan() string {
 	var out []string
@@ -264,11 +302,9 @@ func Imports(r Generateable, settings config.CombinedSettings) func(string) [][]
 }
 
 func dbImports(r Generateable, settings config.CombinedSettings) fileImports {
-	std := []string{"context", "database/sql"}
-	if settings.Go.EmitPreparedQueries {
-		std = append(std, "fmt")
-	}
-	return fileImports{Std: std}
+	std := []string{"context", "database/sql", "fmt"}
+	pkg := []string{"github.com/thoas/go-funk"}
+	return fileImports{Std: std, Dep: pkg}
 }
 
 func interfaceImports(r Generateable, settings config.CombinedSettings) fileImports {
@@ -516,7 +552,6 @@ func queryImports(r Generateable, settings config.CombinedSettings, filename str
 
 	if sliceScan() {
 		std["strings"] = struct{}{}
-		pkg["github.com/lib/pq"] = struct{}{}
 	}
 	_, overrideNullTime := overrideTypes["pq.NullTime"]
 	if uses("pq.NullTime") && !overrideNullTime {
@@ -1045,6 +1080,33 @@ type DBTX interface {
 func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
+func sliceInterface(a interface{}) ([]interface{}, error) {
+	switch a := a.(type) {
+	case []int:
+		return funk.Map(a, func(v int) interface{} {
+			return v
+		}).([]interface{}), nil
+	case []bool:
+		return funk.Map(a, func(v bool) interface{} {
+			return v
+		}).([]interface{}), nil
+	case []float64:
+		return funk.Map(a, func(v float64) interface{} {
+			return v
+		}).([]interface{}), nil
+	case []int64:
+		return funk.Map(a, func(v int64) interface{} {
+			return v
+		}).([]interface{}), nil
+	case []string:
+		return funk.Map(a, func(v string) interface{} {
+			return v
+		}).([]interface{}), nil
+	case bool, float64, int64, string:
+		return []interface{}{a}, nil
+	}
+	return nil, fmt.Errorf("unkown type %T", a)
+}
 
 {{if .EmitPreparedQueries}}
 func Prepare(ctx context.Context, db DBTX) (*Queries, error) {
@@ -1274,13 +1336,14 @@ func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ({{.Ret.Ty
 {{end -}}
 func (q *Queries) {{.MethodName}}(ctx context.Context, {{.Arg.Pair}}) ([]{{.Ret.Type}}, error) {
 	var items []{{.Ret.Type}}
+	{{.Arg.GenQueryPlacehoderParams}}
 	{{if .Arg.LocalSQLQuery}}
 	querySQL := "{{.Arg.LocalSQLQuery}}"
 	{{end}}
   	{{- if $.EmitPreparedQueries}}
-	rows, err := q.query(ctx, q.{{.FieldName}},{{if .Arg.LocalSQLQuery}} querySQL {{else}} {{.ConstantName}} {{end}}, {{.Arg.Params}})
+	rows, err := q.query(ctx, q.{{.FieldName}},{{if .Arg.LocalSQLQuery}} querySQL {{else}} {{.ConstantName}} {{end}}, {{.Arg.ManyParams}})
   	{{- else}}
-	rows, err := q.db.QueryContext(ctx, {{if .Arg.LocalSQLQuery}} querySQL {{else}} {{.ConstantName}} {{end}}, {{.Arg.Params}})
+	rows, err := q.db.QueryContext(ctx, {{if .Arg.LocalSQLQuery}} querySQL {{else}} {{.ConstantName}} {{end}}, {{.Arg.ManyParams}})
   	{{- end}}
 	if err != nil {
 		return nil, err
