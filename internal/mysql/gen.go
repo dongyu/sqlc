@@ -34,10 +34,21 @@ func enumColumnValueName(colName, value string) string {
 	return strings.Join(items, "")
 }
 
+func getTableLastPart(tableName string) string {
+	tablePart := strings.Split(tableName, "_")
+	lastTablePart := ""
+	if len(tablePart) > 1 {
+		lastTablePart = tablePart[len(tablePart)-1]
+	}
+	return lastTablePart
+}
+
 // Enums generates parser-agnostic GoEnum types
 func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 	var enums []dinosql.GoEnum
 	for tableName, table := range r.Schema.tables {
+		lastTablePart := getTableLastPart(tableName)
+
 		for _, col := range table {
 			if col.Type.Type == "enum" {
 				constants := []dinosql.GoConstant{}
@@ -49,7 +60,7 @@ func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 					if isCustomEnumName {
 						name = strings.Title(enumName) + strings.Title(stripped)
 					} else {
-						name = enumColumnValueName(col.Name.String(), stripped)
+						name = enumColumnValueName(lastTablePart+"_"+col.Name.String(), stripped)
 					}
 					constants = append(constants, dinosql.GoConstant{
 						// Name 常量名称
@@ -66,7 +77,7 @@ func (r *Result) Enums(settings config.CombinedSettings) []dinosql.GoEnum {
 					if isCustomEnumName {
 						name = strings.Title(enumName) + strings.Title(stripped)
 					} else {
-						name = enumColumnValueName(col.Name.String(), stripped)
+						name = enumColumnValueName(lastTablePart+"_"+col.Name.String(), stripped)
 					}
 					constants = append(constants, dinosql.GoConstant{
 						// TODO: maybe add the struct name call to capitalize the name here
@@ -104,8 +115,9 @@ func (pGen PackageGenerator) enumNameFromColDef(tableName string, col *sqlparser
 			return customName, true
 		}
 	}
+
 	return fmt.Sprintf("%sType",
-		dinosql.StructName(col.Name.String(), pGen.CombinedSettings)), false
+		dinosql.StructName(getTableLastPart(tableName)+"_"+col.Name.String(), pGen.CombinedSettings)), false
 }
 
 // Structs marshels each query into a go struct for generation
