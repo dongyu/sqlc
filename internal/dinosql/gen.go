@@ -137,7 +137,7 @@ func (v GoQueryValue) GenQueryPlacehoderParams() string {
 	out := []string{`var placehoder []interface{}`}
 	if v.Struct == nil {
 		if strings.HasPrefix(v.Typ, "[]") && v.Typ != "[]byte" {
-			stmt := fmt.Sprintf(`if v,err := sliceInterface(%s);err!=nil{
+			stmt := fmt.Sprintf(`if v,err := SliceInterface(%s);err!=nil{
 					return items,err
 				}else{
 					placehoder = append(placehoder, v...)
@@ -149,7 +149,7 @@ func (v GoQueryValue) GenQueryPlacehoderParams() string {
 	} else {
 		for _, f := range v.Struct.Fields {
 			if strings.HasPrefix(f.Type, "[]") && f.Type != "[]byte" {
-				stmt := fmt.Sprintf(`if v,err := sliceInterface(%s);err!=nil{
+				stmt := fmt.Sprintf(`if v,err := SliceInterface(%s);err!=nil{
 					return items,err
 				}else{
 					placehoder = append(placehoder, v...)
@@ -1082,7 +1082,7 @@ type DBTX interface {
 func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
-func sliceInterface(a interface{}) ([]interface{}, error) {
+func SliceInterface(a interface{}) ([]interface{}, error) {
 	switch a := a.(type) {
 	case []int:
 		return funk.Map(a, func(v int) interface{} {
