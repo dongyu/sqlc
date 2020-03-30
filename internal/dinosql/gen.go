@@ -1082,6 +1082,11 @@ type DBTX interface {
 func New(db DBTX) *Queries {
 	return &Queries{db: db}
 }
+
+func (q *Queries)DB()DBTX  {
+	return q.db
+}
+
 func SliceInterface(a interface{}) ([]interface{}, error) {
 	switch a := a.(type) {
 	case []int:
